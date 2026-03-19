@@ -22,8 +22,11 @@ export default function JournalWidget() {
     const [saving, setSaving] = useState(false);
     const [editing, setEditing] = useState(false);
     const [entries, setEntries] = useState([]);
+    const [search, setSearch] = useState('');
+    const [template, setTemplate] = useState('');
+    const [moodStats, setMoodStats] = useState({});
 
-    useEffect(() => { fetchEntry(); fetchRecentEntries(); }, [currentDate]);
+    useEffect(() => { fetchEntry(); fetchRecentEntries(); fetchMoodStats(); }, [currentDate]);
 
     const fetchEntry = async () => {
         setLoading(true);
@@ -40,8 +43,17 @@ export default function JournalWidget() {
 
     const fetchRecentEntries = async () => {
         try {
-            const res = await api.get('/journal');
+            const params = {};
+            if (search.trim()) params.search = search.trim();
+            const res = await api.get('/journal', { params });
             setEntries(res.data);
+        } catch (err) { console.error(err); }
+    };
+
+    const fetchMoodStats = async () => {
+        try {
+            const res = await api.get('/journal/stats/mood');
+            setMoodStats(res.data);
         } catch (err) { console.error(err); }
     };
 
@@ -53,6 +65,7 @@ export default function JournalWidget() {
             setEntry(res.data);
             setEditing(false);
             fetchRecentEntries();
+            fetchMoodStats();
         } catch (err) { console.error(err); }
         finally { setSaving(false); }
     };
@@ -63,11 +76,43 @@ export default function JournalWidget() {
 
     const isToday = format(currentDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
+    const applyTemplate = (kind) => {
+        const contentByTemplate = {
+            matin: '## Matin\n- Priorité 1:\n- Priorité 2:\n- Intention du jour:\n',
+            soir: '## Soir\n- Ce qui a bien marché:\n- Ce que je peux améliorer:\n- Gratitude:\n',
+        };
+        const next = contentByTemplate[kind] || '';
+        setTemplate(kind);
+        setContent((prev) => (prev ? `${prev}\n\n${next}` : next));
+        setEditing(true);
+    };
+
+    const exportAllEntries = () => {
+        const body = entries
+            .slice()
+            .sort((a, b) => new Date(a.date) - new Date(b.date))
+            .map((e) => `# ${format(new Date(e.date), 'yyyy-MM-dd')} ${e.mood || ''}\n\n${e.content || ''}\n`)
+            .join('\n---\n');
+        const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'journal-export.md';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="flex gap-4 h-[calc(100vh-140px)]">
             {/* Left: Recent entries */}
             <div className="w-64 flex-shrink-0 glass-card p-3 flex flex-col">
                 <h3 className="text-sm font-semibold text-zinc-300 px-2 mb-3">Entrées récentes</h3>
+                <input
+                    className="input-field text-sm py-2 mb-3"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="🔎 Rechercher..."
+                />
                 <div className="flex-1 overflow-y-auto space-y-1">
                     {entries.map((e) => (
                         <button
@@ -111,6 +156,11 @@ export default function JournalWidget() {
                         )}
                     </div>
                     <button onClick={() => goToDate(addDays(currentDate, 1))} className="btn-ghost">→</button>
+                </div>
+                <div className="flex items-center gap-2 mb-4">
+                    <button onClick={() => applyTemplate('matin')} className={`btn-ghost text-sm ${template === 'matin' ? 'text-white' : ''}`}>Template matin</button>
+                    <button onClick={() => applyTemplate('soir')} className={`btn-ghost text-sm ${template === 'soir' ? 'text-white' : ''}`}>Template soir</button>
+                    <button onClick={exportAllEntries} className="btn-ghost text-sm ml-auto">⬇️ Export journal</button>
                 </div>
 
                 {loading ? (
@@ -182,6 +232,14 @@ export default function JournalWidget() {
                                     Aujourd'hui →
                                 </button>
                             )}
+                        </div>
+                        <div className="mt-4 grid grid-cols-3 gap-2">
+                            {Object.entries(moodStats).map(([m, c]) => (
+                                <div key={m} className="glass-card p-2 text-center">
+                                    <p className="text-lg">{m === 'none' ? '📓' : m}</p>
+                                    <p className="text-xs text-zinc-400">{c}</p>
+                                </div>
+                            ))}
                         </div>
                     </>
                 )}

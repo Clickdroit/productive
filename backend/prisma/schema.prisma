@@ -40,16 +40,21 @@ model Todo {
   id          String   @id @default(cuid())
   title       String
   description String?
+  checklist   Json?
+  tags        String[] @default([])
   priority    Priority @default(MEDIUM)
   status      Status   @default(TODO)
   dueDate     DateTime?
+  position    Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pomodoroSessions PomodoroSession[]
 
   @@index([userId])
+  @@index([userId, position])
 }
 
 // ─── Notes (Markdown) ────────────────────────────────────────
@@ -57,6 +62,9 @@ model Note {
   id        String   @id @default(cuid())
   title     String
   content   String   @default("")
+  folder    String?
+  tags      String[] @default([])
+  pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -77,8 +85,11 @@ model PomodoroSession {
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  todoId String?
+  todo   Todo?  @relation(fields: [todoId], references: [id], onDelete: SetNull)
 
   @@index([userId])
+  @@index([todoId])
 }
 
 // ─── Habit Tracker ───────────────────────────────────────────
@@ -87,6 +98,8 @@ model Habit {
   name      String
   color     String   @default("#8b5cf6")
   icon      String   @default("✅")
+  weeklyGoal Int     @default(5)
+  reminderEnabled Boolean @default(false)
   createdAt DateTime @default(now())
 
   userId      String

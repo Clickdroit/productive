@@ -8,16 +8,25 @@ export default function PomodoroWidget() {
     const [timeLeft, setTimeLeft] = useState(WORK_DURATION);
     const [isRunning, setIsRunning] = useState(false);
     const [isBreak, setIsBreak] = useState(false);
+    const [workDuration, setWorkDuration] = useState(WORK_DURATION);
+    const [breakDuration, setBreakDuration] = useState(BREAK_DURATION);
     const [sessionId, setSessionId] = useState(null);
     const [sessions, setSessions] = useState([]);
+    const [todos, setTodos] = useState([]);
+    const [todoId, setTodoId] = useState('');
+    const [productivity, setProductivity] = useState([]);
+    const [range, setRange] = useState('week');
     const [stats, setStats] = useState({ totalSessions: 0, todaySessions: 0, totalMinutes: 0 });
     const intervalRef = useRef(null);
 
     useEffect(() => {
         fetchSessions();
         fetchStats();
+        fetchTodos();
         return () => clearInterval(intervalRef.current);
     }, []);
+
+    useEffect(() => { fetchProductivity(); }, [range]);
 
     const fetchSessions = async () => {
         try {
@@ -33,18 +42,33 @@ export default function PomodoroWidget() {
         } catch (err) { console.error(err); }
     };
 
+    const fetchTodos = async () => {
+        try {
+            const res = await api.get('/todos');
+            setTodos(res.data.filter((t) => t.status !== 'DONE'));
+        } catch (err) { console.error(err); }
+    };
+
+    const fetchProductivity = async () => {
+        try {
+            const res = await api.get('/pomodoro/productivity', { params: { range } });
+            setProductivity(res.data);
+        } catch (err) { console.error(err); }
+    };
+
     const startTimer = useCallback(async () => {
         if (!isRunning) {
             try {
                 const res = await api.post('/pomodoro', {
-                    duration: isBreak ? BREAK_DURATION : WORK_DURATION,
+                    duration: isBreak ? breakDuration : workDuration,
                     type: isBreak ? 'break' : 'work',
+                    todoId: todoId || null,
                 });
                 setSessionId(res.data.id);
             } catch (err) { console.error(err); }
             setIsRunning(true);
         }
-    }, [isRunning, isBreak]);
+    }, [isRunning, isBreak, workDuration, breakDuration, todoId]);
 
     useEffect(() => {
         if (isRunning && timeLeft > 0) {
@@ -71,11 +95,28 @@ export default function PomodoroWidget() {
         // Auto-switch
         if (!isBreak) {
             setIsBreak(true);
-            setTimeLeft(BREAK_DURATION);
+            setTimeLeft(breakDuration);
         } else {
             setIsBreak(false);
-            setTimeLeft(WORK_DURATION);
+            setTimeLeft(workDuration);
         }
+        try {
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+                new Notification('Pomodoro terminé', { body: isBreak ? 'Fin de pause' : 'Session de travail terminée' });
+            }
+        } catch (err) { console.error(err); }
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = ctx.createOscillator();
+            const gain = ctx.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.value = 880;
+            oscillator.connect(gain);
+            gain.connect(ctx.destination);
+            oscillator.start();
+            gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
+            oscillator.stop(ctx.currentTime + 0.4);
+        } catch (err) { console.error(err); }
     };
 
     const pauseTimer = () => {
@@ -85,19 +126,19 @@ export default function PomodoroWidget() {
     const resetTimer = () => {
         setIsRunning(false);
         setSessionId(null);
-        setTimeLeft(isBreak ? BREAK_DURATION : WORK_DURATION);
+        setTimeLeft(isBreak ? breakDuration : workDuration);
     };
 
     const switchMode = (toBreak) => {
         setIsRunning(false);
         setSessionId(null);
         setIsBreak(toBreak);
-        setTimeLeft(toBreak ? BREAK_DURATION : WORK_DURATION);
+        setTimeLeft(toBreak ? breakDuration : workDuration);
     };
 
     const minutes = Math.floor(timeLeft / 60);
     const seconds = timeLeft % 60;
-    const total = isBreak ? BREAK_DURATION : WORK_DURATION;
+    const total = isBreak ? breakDuration : workDuration;
     const progress = ((total - timeLeft) / total) * 100;
     const circumference = 2 * Math.PI * 120;
     const strokeDashoffset = circumference - (progress / 100) * circumference;
@@ -115,7 +156,7 @@ export default function PomodoroWidget() {
                                 : 'text-zinc-400 hover:text-white bg-white/5'
                             }`}
                     >
-                        🍅 Travail (25min)
+                        🍅 Travail ({Math.round(workDuration / 60)}min)
                     </button>
                     <button
                         onClick={() => switchMode(true)}
@@ -124,8 +165,32 @@ export default function PomodoroWidget() {
                                 : 'text-zinc-400 hover:text-white bg-white/5'
                             }`}
                     >
-                        ☕ Pause (5min)
+                        ☕ Pause ({Math.round(breakDuration / 60)}min)
                     </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-6 w-full max-w-md">
+                    <label className="text-xs text-zinc-400">
+                        Travail (min)
+                        <input type="number" min="1" max="180" className="input-field mt-1" value={Math.round(workDuration / 60)} onChange={(e) => {
+                            const next = Math.max(1, Number(e.target.value || 1));
+                            setWorkDuration(next * 60);
+                            if (!isBreak && !isRunning) setTimeLeft(next * 60);
+                        }} />
+                    </label>
+                    <label className="text-xs text-zinc-400">
+                        Pause (min)
+                        <input type="number" min="1" max="60" className="input-field mt-1" value={Math.round(breakDuration / 60)} onChange={(e) => {
+                            const next = Math.max(1, Number(e.target.value || 1));
+                            setBreakDuration(next * 60);
+                            if (isBreak && !isRunning) setTimeLeft(next * 60);
+                        }} />
+                    </label>
+                </div>
+                <div className="w-full max-w-md mb-6">
+                    <select className="input-field" value={todoId} onChange={(e) => setTodoId(e.target.value)}>
+                        <option value="">Aucune tâche liée</option>
+                        {todos.map((todo) => <option key={todo.id} value={todo.id}>{todo.title}</option>)}
+                    </select>
                 </div>
 
                 {/* Circular timer */}
@@ -167,6 +232,11 @@ export default function PomodoroWidget() {
                     <button onClick={resetTimer} className="btn-ghost px-6 py-3">
                         ↺ Reset
                     </button>
+                    {'Notification' in window && Notification.permission !== 'granted' && (
+                        <button onClick={() => Notification.requestPermission()} className="btn-ghost px-6 py-3">
+                            🔔 Activer notif
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -206,6 +276,28 @@ export default function PomodoroWidget() {
                             </div>
                         ))
                     )}
+                </div>
+            </div>
+
+            <div className="glass-card p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-zinc-300">Productivité</h3>
+                    <select value={range} onChange={(e) => setRange(e.target.value)} className="input-field w-auto py-1.5 text-xs">
+                        <option value="day">Jour</option>
+                        <option value="week">Semaine</option>
+                    </select>
+                </div>
+                <div className="flex items-end gap-2 h-40">
+                    {productivity.map((p) => {
+                        const max = Math.max(...productivity.map((x) => x.minutes), 1);
+                        const h = Math.max(8, Math.round((p.minutes / max) * 100));
+                        return (
+                            <div key={p.date} className="flex-1 flex flex-col items-center gap-2">
+                                <div className="w-full bg-brand-500/30 rounded-t" style={{ height: `${h}%` }} />
+                                <span className="text-[10px] text-zinc-500">{new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })}</span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>
