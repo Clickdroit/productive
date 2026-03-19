@@ -11,8 +11,10 @@ export default function HabitWidget() {
     const [currentMonth, setCurrentMonth] = useState(new Date());
     const [newHabit, setNewHabit] = useState('');
     const [newColor, setNewColor] = useState(COLORS[0]);
+    const [weeklyGoal, setWeeklyGoal] = useState(5);
+    const [stats, setStats] = useState({ completionRate30: 0, completionRate90: 0, habits: [] });
 
-    useEffect(() => { fetchHabits(); }, []);
+    useEffect(() => { fetchHabits(); fetchStats(); }, []);
 
     const fetchHabits = async () => {
         try {
@@ -22,13 +24,21 @@ export default function HabitWidget() {
         finally { setLoading(false); }
     };
 
+    const fetchStats = async () => {
+        try {
+            const res = await api.get('/habits/stats/summary');
+            setStats(res.data);
+        } catch (err) { console.error(err); }
+    };
+
     const addHabit = async (e) => {
         e.preventDefault();
         if (!newHabit.trim()) return;
         try {
-            const res = await api.post('/habits', { name: newHabit.trim(), color: newColor });
+            const res = await api.post('/habits', { name: newHabit.trim(), color: newColor, weeklyGoal, reminderEnabled: false });
             setHabits([...habits, res.data]);
             setNewHabit('');
+            fetchStats();
         } catch (err) { console.error(err); }
     };
 
@@ -37,6 +47,7 @@ export default function HabitWidget() {
             const res = await api.post(`/habits/${habitId}/toggle`, { date: format(date, 'yyyy-MM-dd') });
             // Refresh to get updated completions
             fetchHabits();
+            fetchStats();
         } catch (err) { console.error(err); }
     };
 
@@ -44,6 +55,15 @@ export default function HabitWidget() {
         try {
             await api.delete(`/habits/${id}`);
             setHabits(habits.filter((h) => h.id !== id));
+            fetchStats();
+        } catch (err) { console.error(err); }
+    };
+
+    const updateHabit = async (habit, patch) => {
+        try {
+            const res = await api.put(`/habits/${habit.id}`, patch);
+            setHabits((prev) => prev.map((h) => (h.id === habit.id ? res.data : h)));
+            fetchStats();
         } catch (err) { console.error(err); }
     };
 
@@ -94,7 +114,27 @@ export default function HabitWidget() {
                 <button type="submit" className="btn-primary whitespace-nowrap">
                     + Ajouter
                 </button>
+                <input
+                    type="number"
+                    min="1"
+                    max="7"
+                    value={weeklyGoal}
+                    onChange={(e) => setWeeklyGoal(Math.max(1, Number(e.target.value || 1)))}
+                    className="input-field w-28 text-sm"
+                    title="Objectif hebdo"
+                />
             </form>
+
+            <div className="grid grid-cols-2 gap-4">
+                <div className="glass-card p-4 text-center">
+                    <p className="text-2xl font-bold text-cyan-300">{stats.completionRate30}%</p>
+                    <p className="text-xs text-zinc-400">Taux de complétion 30 jours</p>
+                </div>
+                <div className="glass-card p-4 text-center">
+                    <p className="text-2xl font-bold text-emerald-300">{stats.completionRate90}%</p>
+                    <p className="text-xs text-zinc-400">Taux de complétion 90 jours</p>
+                </div>
+            </div>
 
             {/* Calendar header */}
             <div className="glass-card p-4">
@@ -130,10 +170,35 @@ export default function HabitWidget() {
                                     <span className="text-xs text-zinc-500">
                                         ({habit.completions?.length || 0} jours)
                                     </span>
+                                    {(() => {
+                                        const summary = stats.habits?.find((h) => h.id === habit.id);
+                                        return summary ? (
+                                            <span className="text-xs text-amber-300">🔥 {summary.streak} • {summary.weeklyDone}/{summary.weeklyGoal}</span>
+                                        ) : null;
+                                    })()}
                                 </div>
-                                <button onClick={() => deleteHabit(habit.id)} className="btn-danger text-xs">
-                                    ✕
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-xs text-zinc-400 flex items-center gap-1">
+                                        🔔
+                                        <input
+                                            type="checkbox"
+                                            checked={Boolean(habit.reminderEnabled)}
+                                            onChange={(e) => updateHabit(habit, { reminderEnabled: e.target.checked })}
+                                        />
+                                    </label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="7"
+                                        value={habit.weeklyGoal || 5}
+                                        onChange={(e) => updateHabit(habit, { weeklyGoal: Math.max(1, Number(e.target.value || 1)) })}
+                                        className="input-field w-20 text-xs py-1"
+                                        title="Objectif hebdo"
+                                    />
+                                    <button onClick={() => deleteHabit(habit.id)} className="btn-danger text-xs">
+                                        ✕
+                                    </button>
+                                </div>
                             </div>
                             <div className="grid grid-cols-7 gap-1">
                                 {/* Padding */}

@@ -1,6 +1,7 @@
 # 🚀 Productive — Dashboard Productivité
 
 Dashboard productivité tout-en-un avec 5 widgets : **Tâches**, **Notes**, **Pomodoro**, **Habitudes**, **Journal**.
+Inclut aussi une **vue Accueil** et un **mode focus** centré sur le Pomodoro.
 
 ## Stack
 
@@ -65,13 +66,31 @@ Toutes les routes sont préfixées par `/prod/api`.
 | POST    | `/prod/api/auth/login`       | Connexion                 |
 | GET     | `/prod/api/auth/me`          | Utilisateur courant       |
 | GET/POST/PUT/DELETE | `/prod/api/todos`  | CRUD Tâches              |
+| POST    | `/prod/api/todos/reorder`     | Réordonner les tâches     |
 | GET/POST/PUT/DELETE | `/prod/api/notes`  | CRUD Notes               |
 | GET/POST/PATCH/DELETE | `/prod/api/pomodoro` | Sessions Pomodoro    |
 | GET     | `/prod/api/pomodoro/stats`   | Statistiques Pomodoro     |
+| GET     | `/prod/api/pomodoro/productivity` | Productivité jour/semaine |
 | GET/POST/PUT/DELETE | `/prod/api/habits` | CRUD Habitudes           |
 | POST    | `/prod/api/habits/:id/toggle`| Toggle completion jour    |
+| GET     | `/prod/api/habits/stats/summary` | Stats habitudes (30/90j, streaks) |
 | GET/POST/DELETE | `/prod/api/journal`    | Entrées journal          |
 | GET     | `/prod/api/journal/date/:d`  | Entrée par date          |
+| GET     | `/prod/api/journal/stats/mood` | Statistiques d'humeur    |
+
+## Fonctions principales
+
+- **Tâches**: checklist/sous-tâches, description markdown, échéance avec alerte visuelle, tags, drag & drop pour l’ordre.
+- **Notes**: dossiers/catégories, tags, recherche full-text côté API, épinglage, export markdown/PDF (impression navigateur).
+- **Pomodoro**: durées personnalisables, session liée à une tâche, graphe de productivité, son + notification navigateur en fin de session.
+- **Habitudes**: streak 🔥, objectif hebdomadaire configurable, taux de complétion 30/90 jours, rappel activable.
+- **Journal**: templates matin/soir, recherche globale, stats d’humeur mensuelles, export markdown de toutes les entrées.
+- **Global**: vue d’accueil résumée, mode focus, thèmes de couleur, notifications navigateur, raccourcis clavier.
+
+## Raccourcis clavier (Dashboard)
+
+- `1..6`: naviguer entre Accueil / widgets
+- `f`: activer/désactiver le mode focus
 
 ## Structure
 

@@ -10,7 +10,7 @@ router.use(authMiddleware);
 // List entries
 router.get('/', async (req, res) => {
     try {
-        const { month, year } = req.query;
+        const { month, year, search } = req.query;
         const where = { userId: req.userId };
 
         if (month && year) {
@@ -18,12 +18,39 @@ router.get('/', async (req, res) => {
             const end = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
             where.date = { gte: start, lte: end };
         }
+        if (search) {
+            where.content = { contains: search, mode: 'insensitive' };
+        }
 
         const entries = await prisma.journalEntry.findMany({
             where,
             orderBy: { date: 'desc' },
         });
         res.json(entries);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+router.get('/stats/mood', async (req, res) => {
+    try {
+        const { month, year } = req.query;
+        const now = new Date();
+        const targetMonth = month ? parseInt(month, 10) - 1 : now.getMonth();
+        const targetYear = year ? parseInt(year, 10) : now.getFullYear();
+        const start = new Date(targetYear, targetMonth, 1);
+        const end = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
+        const entries = await prisma.journalEntry.findMany({
+            where: { userId: req.userId, date: { gte: start, lte: end } },
+            select: { mood: true },
+        });
+        const moods = {};
+        entries.forEach((entry) => {
+            const key = entry.mood || 'none';
+            moods[key] = (moods[key] || 0) + 1;
+        });
+        res.json(moods);
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erreur serveur' });

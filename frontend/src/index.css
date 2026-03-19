@@ -55,3 +55,25 @@
   .badge-in-progress { @apply badge bg-blue-500/20 text-blue-400; }
   .badge-done { @apply badge bg-emerald-500/20 text-emerald-400; }
 }
+
+@layer base {
+  .theme-violet {
+    --brand-override: 139 92 246;
+  }
+  .theme-emerald {
+    --brand-override: 16 185 129;
+  }
+  .theme-amber {
+    --brand-override: 245 158 11;
+  }
+  .theme-violet .btn-primary,
+  .theme-violet .input-field:focus {
+    @apply focus:border-brand-500;
+  }
+  .theme-emerald .btn-primary {
+    @apply from-emerald-600 to-cyan-500;
+  }
+  .theme-amber .btn-primary {
+    @apply from-amber-600 to-orange-500;
+  }
+}

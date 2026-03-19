@@ -10,9 +10,19 @@ router.use(authMiddleware);
 // List
 router.get('/', async (req, res) => {
     try {
+        const { search, folder, tag } = req.query;
+        const where = { userId: req.userId };
+        if (folder) where.folder = folder;
+        if (tag) where.tags = { has: tag };
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: 'insensitive' } },
+                { content: { contains: search, mode: 'insensitive' } },
+            ];
+        }
         const notes = await prisma.note.findMany({
-            where: { userId: req.userId },
-            orderBy: { updatedAt: 'desc' },
+            where,
+            orderBy: [{ pinned: 'desc' }, { updatedAt: 'desc' }],
         });
         res.json(notes);
     } catch (err) {
@@ -38,11 +48,18 @@ router.get('/:id', async (req, res) => {
 // Create
 router.post('/', async (req, res) => {
     try {
-        const { title, content } = req.body;
+        const { title, content, folder, tags, pinned } = req.body;
         if (!title) return res.status(400).json({ error: 'Le titre est requis' });
 
         const note = await prisma.note.create({
-            data: { title, content: content || '', userId: req.userId },
+            data: {
+                title,
+                content: content || '',
+                folder: folder || null,
+                tags: Array.isArray(tags) ? tags : [],
+                pinned: Boolean(pinned),
+                userId: req.userId,
+            },
         });
         res.status(201).json(note);
     } catch (err) {
@@ -59,12 +76,15 @@ router.put('/:id', async (req, res) => {
         });
         if (!note) return res.status(404).json({ error: 'Note introuvable' });
 
-        const { title, content } = req.body;
+        const { title, content, folder, tags, pinned } = req.body;
         const updated = await prisma.note.update({
             where: { id: req.params.id },
             data: {
                 ...(title !== undefined && { title }),
                 ...(content !== undefined && { content }),
+                ...(folder !== undefined && { folder: folder || null }),
+                ...(tags !== undefined && { tags: Array.isArray(tags) ? tags : [] }),
+                ...(pinned !== undefined && { pinned: Boolean(pinned) }),
             },
         });
         res.json(updated);
