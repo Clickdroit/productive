@@ -56,8 +56,9 @@ export default function DashboardPage() {
     useEffect(() => {
         const onKeyDown = (e) => {
             if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-            if (e.key >= '1' && e.key <= String(WIDGETS.length)) {
-                const idx = Number(e.key) - 1;
+            const keyNum = Number(e.key);
+            if (Number.isInteger(keyNum) && keyNum >= 1 && keyNum <= WIDGETS.length) {
+                const idx = keyNum - 1;
                 if (WIDGETS[idx]) setActiveWidget(WIDGETS[idx].id);
             }
             if (e.key.toLowerCase() === 'f') {

@@ -92,7 +92,7 @@ export default function NotesWidget() {
         URL.revokeObjectURL(url);
     };
 
-    const exportPdf = () => {
+    const printNote = () => {
         window.print();
     };
 
@@ -195,7 +195,7 @@ export default function NotesWidget() {
                                 ) : (
                                     <>
                                         <button onClick={exportMarkdown} className="btn-ghost text-sm">⬇️ MD</button>
-                                        <button onClick={exportPdf} className="btn-ghost text-sm">🖨️ PDF</button>
+                                        <button onClick={printNote} className="btn-ghost text-sm">🖨️ PDF</button>
                                         <button onClick={() => setEditing(true)} className="btn-ghost text-sm">
                                             ✏️ Éditer
                                         </button>

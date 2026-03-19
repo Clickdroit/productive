@@ -138,7 +138,7 @@ router.get('/productivity', async (req, res) => {
         });
 
         const buckets = {};
-        for (let i = 0; i < days; i += 1) {
+        for (let i = 0; i < days; i++) {
             const d = new Date(start);
             d.setDate(start.getDate() + i);
             const key = d.toISOString().slice(0, 10);

@@ -85,12 +85,6 @@ export default function TodoWidget() {
         updateTodo(todo.id, { checklist: next });
     };
 
-    const parseDateInput = (value) => {
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return null;
-        return d;
-    };
-
     const reorderTodos = async (nextTodos) => {
         const ids = nextTodos.map((t) => t.id);
         setTodos(nextTodos);
