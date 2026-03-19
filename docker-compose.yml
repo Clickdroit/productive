@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # ── PostgreSQL ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: productive-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: productive
+      POSTGRES_PASSWORD: productive
+      POSTGRES_DB: productive
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U productive" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Backend (Express + Prisma) ──────────────────────────────
+  backend:
+    build: ./backend
+    container_name: productive-backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://productive:productive@postgres:5432/productive?schema=public
+      JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
+      PORT: 3003
+    ports:
+      - "3003:3003"
+    command: >
+      sh -c "npx prisma migrate deploy && node src/index.js"
+
+  # ── Frontend (React + Nginx) ────────────────────────────────
+  frontend:
+    build: ./frontend
+    container_name: productive-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+volumes:
+  pgdata:
