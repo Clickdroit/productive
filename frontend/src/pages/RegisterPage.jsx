@@ -1,29 +1,30 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+
+const registerSchema = z.object({
+    name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
+    email: z.string().email('Email invalide'),
+    password: z.string().min(6, 'Le mot de passe doit faire au moins 6 caractères'),
+});
 
 export default function RegisterPage() {
-    const { register } = useAuth();
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
-    const [loading, setLoading] = useState(false);
+    const { register: authRegister } = useAuth();
+    const [authError, setAuthError] = useState('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError('');
-        if (password.length < 6) {
-            setError('Le mot de passe doit faire au moins 6 caractères');
-            return;
-        }
-        setLoading(true);
+    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
+        resolver: zodResolver(registerSchema)
+    });
+
+    const onSubmit = async (data) => {
+        setAuthError('');
         try {
-            await register(email, password, name);
+            await authRegister(data.email, data.password, data.name);
         } catch (err) {
-            setError(err.response?.data?.error || "Erreur lors de l'inscription");
-        } finally {
-            setLoading(false);
+            setAuthError(err.response?.data?.error || "Erreur lors de l'inscription");
         }
     };
 
@@ -47,10 +48,10 @@ export default function RegisterPage() {
                     <p className="text-zinc-400">Crée ton compte</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="glass-card p-8 space-y-5">
-                    {error && (
+                <form onSubmit={handleSubmit(onSubmit)} className="glass-card p-8 space-y-5">
+                    {authError && (
                         <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm animate-scale-in">
-                            {error}
+                            {authError}
                         </div>
                     )}
 
@@ -58,41 +59,37 @@ export default function RegisterPage() {
                         <label className="block text-sm font-medium text-zinc-300 mb-1.5">Nom</label>
                         <input
                             type="text"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            className="input-field"
+                            {...register('name')}
+                            className={`input-field ${errors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                             placeholder="Ton nom"
-                            required
                         />
+                        {errors.name && <p className="text-red-400 text-xs mt-1.5">{errors.name.message}</p>}
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-zinc-300 mb-1.5">Email</label>
                         <input
                             type="email"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            className="input-field"
+                            {...register('email')}
+                            className={`input-field ${errors.email ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                             placeholder="ton@email.com"
-                            required
                         />
+                        {errors.email && <p className="text-red-400 text-xs mt-1.5">{errors.email.message}</p>}
                     </div>
 
                     <div>
                         <label className="block text-sm font-medium text-zinc-300 mb-1.5">Mot de passe</label>
                         <input
                             type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            className="input-field"
+                            {...register('password')}
+                            className={`input-field ${errors.password ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20' : ''}`}
                             placeholder="Min. 6 caractères"
-                            required
-                            minLength={6}
                         />
+                        {errors.password && <p className="text-red-400 text-xs mt-1.5">{errors.password.message}</p>}
                     </div>
 
-                    <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-base">
-                        {loading ? (
+                    <button type="submit" disabled={isSubmitting} className="btn-primary w-full py-3 text-base">
+                        {isSubmitting ? (
                             <span className="flex items-center justify-center gap-2">
                                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                 Création...

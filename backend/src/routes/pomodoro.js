@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const authMiddleware = require('../middleware/auth');
+const { awardXP } = require('../utils/gamification');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -96,7 +97,9 @@ router.patch('/:id/complete', async (req, res) => {
             where: { id: req.params.id },
             data: { completed: true, endedAt: new Date() },
         });
-        res.json(updated);
+
+        const xpResult = await awardXP(req.userId, 20); // 20 XP pour un Pomodoro
+        res.json({ ...updated, xpResult });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erreur serveur' });

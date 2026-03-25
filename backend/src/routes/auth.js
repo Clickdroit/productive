@@ -3,18 +3,24 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
 const authMiddleware = require('../middleware/auth');
+const { z } = require('zod');
+const validate = require('../middleware/validate');
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
+const registerSchema = z.object({
+    body: z.object({
+        email: z.string().email('Email invalide'),
+        password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
+        name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
+    }),
+});
+
 // ── Register ─────────────────────────────────────────────────
-router.post('/register', async (req, res) => {
+router.post('/register', validate(registerSchema), async (req, res) => {
     try {
         const { email, password, name } = req.body;
-
-        if (!email || !password || !name) {
-            return res.status(400).json({ error: 'Email, mot de passe et nom sont requis' });
-        }
 
         const existing = await prisma.user.findUnique({ where: { email } });
         if (existing) {
@@ -38,14 +44,17 @@ router.post('/register', async (req, res) => {
     }
 });
 
+const loginSchema = z.object({
+    body: z.object({
+        email: z.string().email('Email invalide'),
+        password: z.string().min(1, 'Mot de passe requis'),
+    }),
+});
+
 // ── Login ────────────────────────────────────────────────────
-router.post('/login', async (req, res) => {
+router.post('/login', validate(loginSchema), async (req, res) => {
     try {
         const { email, password } = req.body;
-
-        if (!email || !password) {
-            return res.status(400).json({ error: 'Email et mot de passe requis' });
-        }
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user) {
@@ -74,7 +83,7 @@ router.get('/me', authMiddleware, async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
             where: { id: req.userId },
-            select: { id: true, email: true, name: true, createdAt: true },
+            select: { id: true, email: true, name: true, xp: true, level: true, createdAt: true },
         });
         if (!user) return res.status(404).json({ error: 'Utilisateur introuvable' });
         res.json({ user });

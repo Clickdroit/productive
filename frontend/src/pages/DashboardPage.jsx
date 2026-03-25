@@ -7,6 +7,7 @@ import PomodoroWidget from '../components/PomodoroWidget';
 import HabitWidget from '../components/HabitWidget';
 import JournalWidget from '../components/JournalWidget';
 import HomeWidget from '../components/HomeWidget';
+import QuickCaptureModal from '../components/QuickCaptureModal';
 
 const WIDGETS = [
     { id: 'home', label: 'Accueil', icon: '🏠', component: HomeWidget },
@@ -22,6 +23,7 @@ export default function DashboardPage() {
     const [activeWidget, setActiveWidget] = useState('home');
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [focusMode, setFocusMode] = useState(false);
+    const [quickCaptureOpen, setQuickCaptureOpen] = useState(false);
     const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'violet');
 
     const ActiveComponent = WIDGETS.find((w) => w.id === activeWidget)?.component || HomeWidget;
@@ -55,6 +57,12 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const onKeyDown = (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                setQuickCaptureOpen(true);
+                return;
+            }
+
             if (e.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
             const keyNum = Number(e.key);
             if (Number.isInteger(keyNum) && keyNum >= 1 && keyNum <= WIDGETS.length) {
@@ -134,6 +142,11 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </main>
+
+            <QuickCaptureModal 
+                isOpen={quickCaptureOpen} 
+                onClose={() => setQuickCaptureOpen(false)} 
+            />
         </div>
     );
 }

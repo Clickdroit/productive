@@ -1,6 +1,7 @@
 const express = require('express');
 const { PrismaClient } = require('@prisma/client');
 const authMiddleware = require('../middleware/auth');
+const { awardXP } = require('../utils/gamification');
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -78,7 +79,13 @@ router.put('/:id', async (req, res) => {
                 ...(position !== undefined && { position }),
             },
         });
-        res.json(updated);
+
+        let xpResult = null;
+        if (status === 'DONE' && todo.status !== 'DONE') {
+            xpResult = await awardXP(req.userId, 10);
+        }
+        
+        res.json({ ...updated, xpResult });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Erreur serveur' });

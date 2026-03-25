@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkBreaks from 'remark-breaks';
 import api from '../lib/api';
 
 export default function NotesWidget() {
@@ -219,7 +220,7 @@ export default function NotesWidget() {
                                 </div>
                             ) : (
                                 <div className="prose prose-invert prose-sm max-w-none">
-                                    <ReactMarkdown>{selected.content || '*Note vide — clique sur Éditer pour commencer*'}</ReactMarkdown>
+                                    <ReactMarkdown remarkPlugins={[remarkBreaks]}>{selected.content || '*Note vide — clique sur Éditer pour commencer*'}</ReactMarkdown>
                                 </div>
                             )}
                         </div>
